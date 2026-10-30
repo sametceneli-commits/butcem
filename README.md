@@ -1,4 +1,4 @@
-# Bütçem — gelir/gider takip uygulaması (V1)
+# Dayıcım Hesap — gelir/gider takip uygulaması
 
 Bu proje iPhone'da ana ekrana eklenebilen bir PWA'dır. E-posta/şifre ile Supabase Auth kullanır; işlemler Supabase veritabanında saklanır ve aynı hesapla giriş yapılan cihazlarda senkronize olur.
 
@@ -22,13 +22,14 @@ Dosyaları HTTPS destekleyen statik bir hostinge (ör. GitHub Pages) yükle. Git
 ## 4. iPhone'a yükle
 1. Yayınlanan HTTPS adresini Safari'de aç.
 2. Paylaş → Ana Ekrana Ekle.
-3. Ana ekrandaki Bütçem simgesine dokunarak kullan.
+3. Ana ekrandaki Dayıcım Hesap simgesine dokunarak kullan.
 
 ## Özellikler
 - E-posta ile hesap oluşturma ve giriş
 - Gelir/gider kaydı, tarih ve kategori
 - Kredi kartı ödeme yöntemi ve kart adı alanı
 - Aylık gelir/gider özeti ve toplam bakiye
+- Son 6 ayın gelir-gider grafiği ve kategori bazında gider dağılımı
 - Tekrarlayan aylık ödeme planları (otomatik tahsilat veya otomatik işlem oluşturmaz)
 - İşlem silme ve CSV dışa aktarma
 

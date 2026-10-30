@@ -33,9 +33,34 @@ function render(){
   const mt=transactions.filter(x=>x.occurred_on?.startsWith(month));
   $("monthIncome").textContent=money(mt.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0));
   $("monthExpense").textContent=money(mt.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0));
+  drawCharts(mt, month);
   $("transactions").innerHTML=transactions.length?transactions.map(x=>`<div class="item"><div><b>${esc(x.description||x.category)}</b><small>${esc(x.category)} · ${x.occurred_on} · ${x.payment_method==="card"?"Kredi kartı":"Nakit / Banka"}${x.card_name?" · "+esc(x.card_name):""}</small></div><b class="${x.type==="income"?"positive":"negative"}">${x.type==="income"?"+":"−"}${money(x.amount)}</b><button data-delete="${x.id}">Sil</button></div>`).join(""):'<p class="muted">Henüz işlem yok.</p>';
   $("recurringList").innerHTML=recurring.length?recurring.map(x=>`<div class="item"><div><b>${esc(x.name)}</b><small>Her ayın ${x.day_of_month}. günü · ${esc(x.category)}</small></div><b>${money(x.amount)}</b><button data-rec-delete="${x.id}">Sil</button></div>`).join(""):'<p class="muted">Henüz tekrarlayan ödeme eklenmedi.</p>';
 }
+
+const chartColors=["#0b9874","#ff914d","#547bd4","#e85b65","#8b69c9","#e5b84c","#42a6b4","#8aa69a"];
+function drawCharts(monthTransactions, month){
+  const trend=$("trendChart"),ctx=trend.getContext("2d");
+  const dpr=window.devicePixelRatio||1, width=Math.max(280,trend.clientWidth||320), height=190;
+  trend.width=width*dpr;trend.height=height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+  const months=[];const base=new Date(`${month}-01T12:00:00`);
+  for(let i=5;i>=0;i--){const d=new Date(base.getFullYear(),base.getMonth()-i,1);const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;const rows=transactions.filter(x=>x.occurred_on?.startsWith(key));months.push({label:d.toLocaleDateString("tr-TR",{month:"short"}),income:rows.filter(x=>x.type==="income").reduce((a,x)=>a+Number(x.amount),0),expense:rows.filter(x=>x.type==="expense").reduce((a,x)=>a+Number(x.amount),0)});}
+  const max=Math.max(1,...months.flatMap(x=>[x.income,x.expense]));const left=34,right=8,top=10,bottom=30,plotH=height-top-bottom,plotW=width-left-right;
+  ctx.font="10px -apple-system, sans-serif";ctx.textAlign="right";ctx.fillStyle="#8a9b91";ctx.strokeStyle="#edf2ed";ctx.lineWidth=1;
+  for(let i=0;i<=3;i++){const y=top+plotH*i/3;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(width-right,y);ctx.stroke();const val=max*(1-i/3);ctx.fillText(val>=1000?`${Math.round(val/1000)}k`:Math.round(val),left-7,y+3);}
+  const group=plotW/6,barW=Math.min(13,group*.25);
+  months.forEach((m,i)=>{const center=left+group*(i+.5);[[m.income,"#0b9874",-barW-2],[m.expense,"#ff914d",2]].forEach(([v,color,offset])=>{const h=(v/max)*plotH;ctx.fillStyle=color;roundRect(ctx,center+offset,top+plotH-h,barW,h,4);});ctx.fillStyle="#71877d";ctx.textAlign="center";ctx.fillText(m.label,center,height-9);});
+  const hasTrend=months.some(x=>x.income||x.expense);$("chartEmpty").classList.toggle("hidden",hasTrend);
+  const canvas=$("categoryChart"),c=canvas.getContext("2d"),size=180;canvas.width=size*dpr;canvas.height=size*dpr;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,size,size);
+  const totals={};monthTransactions.filter(x=>x.type==="expense").forEach(x=>totals[x.category]=(totals[x.category]||0)+Number(x.amount));
+  const entries=Object.entries(totals).sort((a,b)=>b[1]-a[1]);const total=entries.reduce((a,x)=>a+x[1],0);$("categoryMonth").textContent=month;
+  if(!total){c.beginPath();c.arc(90,90,66,0,Math.PI*2);c.strokeStyle="#e8efe9";c.lineWidth=22;c.stroke();c.fillStyle="#8a9b91";c.font="11px -apple-system,sans-serif";c.textAlign="center";c.fillText("Veri yok",90,94);$("categoryLegend").innerHTML='<span class="muted">Bu ay henüz gider kaydı yok.</span>';return;}
+  let start=-Math.PI/2;c.lineWidth=23;entries.forEach(([name,value],i)=>{const end=start+(value/total)*Math.PI*2;c.beginPath();c.arc(90,90,65,start,end);c.strokeStyle=chartColors[i%chartColors.length];c.lineCap="butt";c.stroke();start=end;});
+  c.fillStyle="#294d40";c.font="bold 13px -apple-system,sans-serif";c.textAlign="center";c.fillText(money(total).replace(",00",""),90,87);c.fillStyle="#819188";c.font="9px -apple-system,sans-serif";c.fillText("Toplam gider",90,102);
+  $("categoryLegend").innerHTML=entries.slice(0,6).map(([name,value],i)=>`<div class="cat-row"><span class="cat-name"><i class="cat-dot" style="background:${chartColors[i%chartColors.length]}"></i>${esc(name)}</span><b class="cat-value">${Math.round(value/total*100)}%</b></div>`).join("");
+}
+function roundRect(ctx,x,y,w,h,r){if(h<=0)return;ctx.beginPath();ctx.roundRect(x,y,w,Math.min(h,180),[r,r,0,0]);ctx.fill();}
+
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 $("month").value=today.slice(0,7);$("date").value=today;setCategories();
 document.querySelectorAll("[data-type]").forEach(b=>b.addEventListener("click",()=>{type=b.dataset.type;document.querySelectorAll("[data-type]").forEach(x=>x.classList.toggle("active",x===b));setCategories()}));
@@ -68,7 +93,7 @@ $("transactionForm").onsubmit=async e=>{e.preventDefault();const amount=Number($
 $("recurringForm").onsubmit=async e=>{e.preventDefault();const row={user_id:user.id,name:$("recName").value.trim(),amount:Number($("recAmount").value),day_of_month:Number($("recDay").value),category:$("recCategory").value};const {error}=await supabase.from("recurring_payments").insert(row);if(error){setMessage("txMessage",error.message);return}e.target.reset();await loadData()};
 $("transactions").onclick=async e=>{const id=e.target.dataset.delete;if(id&&confirm("Bu işlemi silmek istiyor musun?")){await supabase.from("transactions").delete().eq("id",id);await loadData()}};
 $("recurringList").onclick=async e=>{const id=e.target.dataset.recDelete;if(id&&confirm("Bu tekrarlayan ödemeyi silmek istiyor musun?")){await supabase.from("recurring_payments").delete().eq("id",id);await loadData()}};
-$("month").onchange=render;
+$("month").onchange=render;window.addEventListener("resize",()=>{if(user)render()});
 $("exportCsv").onclick=()=>{const rows=[["Tarih","Tür","Tutar (TRY)","Kategori","Ödeme yöntemi","Kart","Açıklama"],...transactions.map(x=>[x.occurred_on,x.type,x.amount,x.category,x.payment_method,x.card_name||"",x.description||""])];const csv="\uFEFF"+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="butcem-islemler.csv";a.click();URL.revokeObjectURL(a.href)};
 if(!configured){$("authPanel").classList.remove("hidden");$("dashboard").classList.add("hidden");setMessage("authMessage","Kurulum gerekli: README dosyasındaki Supabase adımlarını tamamla.")}else{supabase.auth.getSession().then(({data})=>showApp(data.session));supabase.auth.onAuthStateChange((event,session)=>{
   showApp(session);
