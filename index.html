@@ -26,10 +26,20 @@
       <label>Şifre<input id="password" type="password" placeholder="En az 8 karakter" autocomplete="current-password"></label>
       <button id="signIn" class="primary">Giriş yap</button>
       <button id="signUp" class="secondary">Yeni hesap oluştur</button>
+      <button id="forgotPassword" class="link-button" type="button">Şifremi unuttum</button>
       <p id="authMessage" class="message"></p>
     </section>
 
     <section id="dashboard" class="hidden">
+      <details id="accountSettings" class="panel account-settings">
+        <summary>Hesap ve şifre ayarları</summary>
+        <form id="passwordForm">
+          <label>Yeni şifre<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="En az 8 karakter"></label>
+          <label>Yeni şifre tekrar<input id="confirmPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="Şifreni tekrar gir"></label>
+          <button class="secondary" type="submit">Şifremi değiştir</button>
+        </form>
+        <p id="passwordMessage" class="message"></p>
+      </details>
       <div class="balance panel">
         <p>Toplam bakiye</p><strong id="balance">₺0,00</strong>
         <div class="totals"><div><span>Toplam gelir</span><b id="incomeTotal">₺0,00</b></div><div><span>Toplam gider</span><b id="expenseTotal">₺0,00</b></div></div>

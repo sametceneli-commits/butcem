@@ -42,6 +42,27 @@ document.querySelectorAll("[data-type]").forEach(b=>b.addEventListener("click",(
 $("payment").addEventListener("change",()=>$("cardLabel").classList.toggle("hidden",$("payment").value!=="card"));
 $("signUp").onclick=async()=>{if(!supabase){setMessage("authMessage","Önce Supabase proje bilgileri eklenmeli.");return}const {error}=await supabase.auth.signUp({email:$("email").value,password:$("password").value});setMessage("authMessage",error?.message||"Kayıt bağlantısı e-posta adresine gönderildi. E-postanı kontrol et.")};
 $("signIn").onclick=async()=>{if(!supabase){setMessage("authMessage","Önce Supabase proje bilgileri eklenmeli.");return}const {error}=await supabase.auth.signInWithPassword({email:$("email").value,password:$("password").value});setMessage("authMessage",error?.message||"")};
+$("forgotPassword").onclick=async()=>{
+  if(!supabase){setMessage("authMessage","Supabase bağlantısı yapılandırılmamış.");return}
+  const email=$("email").value.trim();
+  if(!email){setMessage("authMessage","Önce e-posta adresini yaz.");$("email").focus();return}
+  const redirectTo=`${window.location.origin}${window.location.pathname}?resetPassword=1`;
+  const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});
+  setMessage("authMessage",error?`Şifre sıfırlama e-postası gönderilemedi: ${error.message}`:"Şifre sıfırlama bağlantısı e-posta adresine gönderildi. Gelen kutunu ve spam klasörünü kontrol et.");
+};
+$("passwordForm").onsubmit=async e=>{
+  e.preventDefault();
+  const password=$("newPassword").value;
+  if(password.length<8){setMessage("passwordMessage","Şifre en az 8 karakter olmalı.");return}
+  if(password!==$("confirmPassword").value){setMessage("passwordMessage","Girdiğin şifreler eşleşmiyor.");return}
+  const {error}=await supabase.auth.updateUser({password});
+  if(error){setMessage("passwordMessage",`Şifre değiştirilemedi: ${error.message}`);return}
+  e.target.reset();
+  setMessage("passwordMessage","Şifren başarıyla güncellendi.");
+  if(new URLSearchParams(window.location.search).has("resetPassword")){
+    window.history.replaceState({},document.title,window.location.pathname);
+  }
+};
 $("signOut").onclick=()=>supabase.auth.signOut();
 $("transactionForm").onsubmit=async e=>{e.preventDefault();const amount=Number($("amount").value);if(!(amount>0))return;const row={user_id:user.id,type,amount,category:$("category").value,occurred_on:$("date").value,payment_method:$("payment").value,card_name:$("payment").value==="card"?$("cardName").value:null,description:$("description").value.trim()};const {error}=await supabase.from("transactions").insert(row);if(error){setMessage("txMessage",error.message);return}e.target.reset();$("date").value=today;$("payment").value="cash";$("cardLabel").classList.add("hidden");setMessage("txMessage","İşlem kaydedildi.");await loadData()};
 $("recurringForm").onsubmit=async e=>{e.preventDefault();const row={user_id:user.id,name:$("recName").value.trim(),amount:Number($("recAmount").value),day_of_month:Number($("recDay").value),category:$("recCategory").value};const {error}=await supabase.from("recurring_payments").insert(row);if(error){setMessage("txMessage",error.message);return}e.target.reset();await loadData()};
@@ -49,5 +70,12 @@ $("transactions").onclick=async e=>{const id=e.target.dataset.delete;if(id&&conf
 $("recurringList").onclick=async e=>{const id=e.target.dataset.recDelete;if(id&&confirm("Bu tekrarlayan ödemeyi silmek istiyor musun?")){await supabase.from("recurring_payments").delete().eq("id",id);await loadData()}};
 $("month").onchange=render;
 $("exportCsv").onclick=()=>{const rows=[["Tarih","Tür","Tutar (TRY)","Kategori","Ödeme yöntemi","Kart","Açıklama"],...transactions.map(x=>[x.occurred_on,x.type,x.amount,x.category,x.payment_method,x.card_name||"",x.description||""])];const csv="\uFEFF"+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="butcem-islemler.csv";a.click();URL.revokeObjectURL(a.href)};
-if(!configured){$("authPanel").classList.remove("hidden");$("dashboard").classList.add("hidden");setMessage("authMessage","Kurulum gerekli: README dosyasındaki Supabase adımlarını tamamla.")}else{supabase.auth.getSession().then(({data})=>showApp(data.session));supabase.auth.onAuthStateChange((_event,session)=>showApp(session))}
+if(!configured){$("authPanel").classList.remove("hidden");$("dashboard").classList.add("hidden");setMessage("authMessage","Kurulum gerekli: README dosyasındaki Supabase adımlarını tamamla.")}else{supabase.auth.getSession().then(({data})=>showApp(data.session));supabase.auth.onAuthStateChange((event,session)=>{
+  showApp(session);
+  if(event==="PASSWORD_RECOVERY" || new URLSearchParams(window.location.search).has("resetPassword")){
+    $("accountSettings").open=true;
+    setMessage("passwordMessage","Yeni şifreni belirleyebilirsin.");
+    $("newPassword").focus();
+  }
+})}
 if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{});
