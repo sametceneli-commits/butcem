@@ -40,24 +40,62 @@ function render(){
 
 const chartColors=["#0b9874","#ff914d","#547bd4","#e85b65","#8b69c9","#e5b84c","#42a6b4","#8aa69a"];
 function drawCharts(monthTransactions, month){
+  const dpr=Math.max(1,window.devicePixelRatio||1);
   const trend=$("trendChart"),ctx=trend.getContext("2d");
-  const dpr=window.devicePixelRatio||1, width=Math.max(280,trend.clientWidth||320), height=190;
-  trend.width=width*dpr;trend.height=height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
-  const months=[];const base=new Date(`${month}-01T12:00:00`);
-  for(let i=5;i>=0;i--){const d=new Date(base.getFullYear(),base.getMonth()-i,1);const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;const rows=transactions.filter(x=>x.occurred_on?.startsWith(key));months.push({label:d.toLocaleDateString("tr-TR",{month:"short"}),income:rows.filter(x=>x.type==="income").reduce((a,x)=>a+Number(x.amount),0),expense:rows.filter(x=>x.type==="expense").reduce((a,x)=>a+Number(x.amount),0)});}
-  const max=Math.max(1,...months.flatMap(x=>[x.income,x.expense]));const left=34,right=8,top=10,bottom=30,plotH=height-top-bottom,plotW=width-left-right;
-  ctx.font="10px -apple-system, sans-serif";ctx.textAlign="right";ctx.fillStyle="#8a9b91";ctx.strokeStyle="#edf2ed";ctx.lineWidth=1;
-  for(let i=0;i<=3;i++){const y=top+plotH*i/3;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(width-right,y);ctx.stroke();const val=max*(1-i/3);ctx.fillText(val>=1000?`${Math.round(val/1000)}k`:Math.round(val),left-7,y+3);}
-  const group=plotW/6,barW=Math.min(13,group*.25);
-  months.forEach((m,i)=>{const center=left+group*(i+.5);[[m.income,"#0b9874",-barW-2],[m.expense,"#ff914d",2]].forEach(([v,color,offset])=>{const h=(v/max)*plotH;ctx.fillStyle=color;roundRect(ctx,center+offset,top+plotH-h,barW,h,4);});ctx.fillStyle="#71877d";ctx.textAlign="center";ctx.fillText(m.label,center,height-9);});
-  const hasTrend=months.some(x=>x.income||x.expense);$("chartEmpty").classList.toggle("hidden",hasTrend);
-  const canvas=$("categoryChart"),c=canvas.getContext("2d"),size=180;canvas.width=size*dpr;canvas.height=size*dpr;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,size,size);
-  const totals={};monthTransactions.filter(x=>x.type==="expense").forEach(x=>totals[x.category]=(totals[x.category]||0)+Number(x.amount));
-  const entries=Object.entries(totals).sort((a,b)=>b[1]-a[1]);const total=entries.reduce((a,x)=>a+x[1],0);$("categoryMonth").textContent=month;
-  if(!total){c.beginPath();c.arc(90,90,66,0,Math.PI*2);c.strokeStyle="#e8efe9";c.lineWidth=22;c.stroke();c.fillStyle="#8a9b91";c.font="11px -apple-system,sans-serif";c.textAlign="center";c.fillText("Veri yok",90,94);$("categoryLegend").innerHTML='<span class="muted">Bu ay henüz gider kaydı yok.</span>';return;}
-  let start=-Math.PI/2;c.lineWidth=23;entries.forEach(([name,value],i)=>{const end=start+(value/total)*Math.PI*2;c.beginPath();c.arc(90,90,65,start,end);c.strokeStyle=chartColors[i%chartColors.length];c.lineCap="butt";c.stroke();start=end;});
-  c.fillStyle="#294d40";c.font="bold 13px -apple-system,sans-serif";c.textAlign="center";c.fillText(money(total).replace(",00",""),90,87);c.fillStyle="#819188";c.font="9px -apple-system,sans-serif";c.fillText("Toplam gider",90,102);
-  $("categoryLegend").innerHTML=entries.slice(0,6).map(([name,value],i)=>`<div class="cat-row"><span class="cat-name"><i class="cat-dot" style="background:${chartColors[i%chartColors.length]}"></i>${esc(name)}</span><b class="cat-value">${Math.round(value/total*100)}%</b></div>`).join("");
+  const width=Math.max(280,Math.floor(trend.getBoundingClientRect().width||trend.parentElement.clientWidth||320));
+  const height=210;
+  trend.width=Math.round(width*dpr);trend.height=Math.round(height*dpr);
+  trend.style.height=height+"px";ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+
+  // Seçili ayı bitiş kabul ederek geriye dönük altı aylık toplamları hesapla.
+  const base=new Date(`${month}-01T12:00:00`),months=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(base.getFullYear(),base.getMonth()-i,1);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    const rows=transactions.filter(x=>String(x.occurred_on||"").startsWith(key));
+    months.push({label:d.toLocaleDateString("tr-TR",{month:"short"}),income:rows.filter(x=>x.type==="income").reduce((a,x)=>a+Number(x.amount||0),0),expense:rows.filter(x=>x.type==="expense").reduce((a,x)=>a+Number(x.amount||0),0)});
+  }
+  const max=Math.max(1,...months.flatMap(x=>[x.income,x.expense]));
+  const left=42,right=10,top=14,bottom=34,plotH=height-top-bottom,plotW=width-left-right;
+  ctx.font="10px -apple-system, sans-serif";ctx.textAlign="right";ctx.textBaseline="middle";
+  for(let i=0;i<=3;i++){
+    const y=top+plotH*i/3;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(width-right,y);ctx.strokeStyle="#edf2ed";ctx.lineWidth=1;ctx.stroke();
+    const val=max*(1-i/3);const label=val>=1000000?`${(val/1000000).toFixed(1)}m`:val>=1000?`${Math.round(val/1000)}b`:Math.round(val).toString();
+    ctx.fillStyle="#8a9b91";ctx.fillText(label,left-7,y);
+  }
+  const group=plotW/6,barW=Math.min(15,Math.max(7,group*.25));
+  months.forEach((m,i)=>{
+    const center=left+group*(i+.5);
+    [[m.income,"#0b9874",-barW-2],[m.expense,"#ff914d",2]].forEach(([v,color,offset])=>{
+      const h=Math.max(v>0?2:0,(v/max)*plotH);ctx.fillStyle=color;
+      if(v>0)roundRect(ctx,center+offset,top+plotH-h,barW,h,4);
+    });
+    ctx.fillStyle="#71877d";ctx.textAlign="center";ctx.textBaseline="alphabetic";ctx.fillText(m.label,center,height-10);
+  });
+  const hasTrend=months.some(x=>x.income>0||x.expense>0);
+  $("chartEmpty").classList.toggle("hidden",hasTrend);
+  if(!hasTrend)$("chartEmpty").textContent="Son 6 ayda grafik oluşturacak işlem kaydı bulunamadı. İlk gelir veya giderini eklediğinde grafik burada görünecek.";
+
+  // Seçili ayın giderlerini kategori bazında halka grafikte göster.
+  const canvas=$("categoryChart"),c=canvas.getContext("2d"),size=180;
+  canvas.width=Math.round(size*dpr);canvas.height=Math.round(size*dpr);
+  canvas.style.width=size+"px";canvas.style.height=size+"px";
+  c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,size,size);
+  const totals={};
+  monthTransactions.filter(x=>x.type==="expense").forEach(x=>{const key=x.category||"Diğer";totals[key]=(totals[key]||0)+Number(x.amount||0)});
+  const entries=Object.entries(totals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((a,x)=>a+x[1],0);$("categoryMonth").textContent=month;
+  if(!total){
+    c.beginPath();c.arc(90,90,65,0,Math.PI*2);c.strokeStyle="#e8efe9";c.lineWidth=22;c.stroke();
+    c.fillStyle="#8a9b91";c.font="11px -apple-system,sans-serif";c.textAlign="center";c.fillText("Henüz gider yok",90,94);
+    $("categoryLegend").innerHTML='<span class="muted">Seçili ayda gider kaydı bulunmuyor. Gider eklediğinde kategori dağılımı burada görünecek.</span>';
+    return;
+  }
+  let start=-Math.PI/2;c.lineWidth=23;
+  entries.forEach(([name,value],i)=>{const end=start+(value/total)*Math.PI*2;c.beginPath();c.arc(90,90,65,start,end);c.strokeStyle=chartColors[i%chartColors.length];c.lineCap="butt";c.stroke();start=end;});
+  c.fillStyle="#294d40";c.font="bold 12px -apple-system,sans-serif";c.textAlign="center";c.fillText(money(total).replace(",00",""),90,87);
+  c.fillStyle="#819188";c.font="9px -apple-system,sans-serif";c.fillText("Toplam gider",90,102);
+  $("categoryLegend").innerHTML=entries.slice(0,7).map(([name,value],i)=>`<div class="cat-row"><span class="cat-name"><i class="cat-dot" style="background:${chartColors[i%chartColors.length]}"></i>${esc(name)}</span><b class="cat-value">${Math.round(value/total*100)}%</b></div>`).join("");
 }
 function roundRect(ctx,x,y,w,h,r){if(h<=0)return;ctx.beginPath();ctx.roundRect(x,y,w,Math.min(h,180),[r,r,0,0]);ctx.fill();}
 
