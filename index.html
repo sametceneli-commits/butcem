@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Dayıcım Hesap">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="dayi-mascot.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=6">
   <title>Dayıcım Hesap</title>
 </head>
 <body>
@@ -37,6 +37,7 @@
       <div class="balance panel"><div class="balance-top"><span>Toplam bakiye</span><span class="balance-mark">DAYI'NIN KASASI</span></div><strong id="balance">₺0,00</strong><div class="totals"><div><span>Toplam gelir</span><b id="incomeTotal">₺0,00</b></div><div><span>Toplam gider</span><b id="expenseTotal">₺0,00</b></div></div></div>
       <div class="month-row"><h2>Genel bakış</h2><input id="month" type="month"></div>
       <div class="stats"><div class="panel income-card"><span>Bu ay gelir</span><b id="monthIncome">₺0,00</b></div><div class="panel expense-card"><span>Bu ay gider</span><b id="monthExpense">₺0,00</b></div></div>
+      <section class="panel spending-limit"><div class="limit-heading"><div><p class="eyebrow">GÜNLÜK HARCAMA LİMİTİM</p><h2>Bu ay kalan paran</h2></div><span class="limit-icon">₺</span></div><div class="limit-values"><div><span>Aylık kalan</span><b id="monthRemaining">₺0,00</b></div><div><span>Günlük harcayabileceğin</span><strong id="dailyLimit">₺0,00</strong></div></div><p id="limitDays" class="hint">Ayın kalan gün sayısına göre hesaplanır.</p></section>
 
       <section class="panel chart-panel"><div class="section-head"><div><p class="eyebrow">AYLIK PERFORMANS</p><h2>Gelir - gider grafiği</h2></div><span class="chart-legend"><i class="legend-income"></i> Gelir <i class="legend-expense"></i> Gider</span></div><canvas id="trendChart" height="190" aria-label="Son altı ay gelir gider grafiği"></canvas><p id="chartEmpty" class="hint hidden">Grafik oluşturmak için henüz yeterli işlem yok.</p></section>
       <section class="panel chart-panel"><div class="section-head"><div><p class="eyebrow">HARCAMA ANALİZİ</p><h2>Paran nereye gidiyor?</h2></div><span id="categoryMonth" class="muted"></span></div><div class="donut-wrap"><canvas id="categoryChart" width="180" height="180" aria-label="Kategori bazında gider dağılımı"></canvas><div id="categoryLegend" class="category-legend"></div></div></section>
@@ -51,6 +52,6 @@
     </section>
     <footer>Dayıcım Hesap · Hesap kitap tamamdır ☕<br>Verilerin güvenli şekilde hesabına bağlıdır.</footer>
   </main>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=6"></script>
 </body>
 </html>

@@ -31,8 +31,23 @@ function render(){
   $("balance").textContent=money(income-expense);$("incomeTotal").textContent=money(income);$("expenseTotal").textContent=money(expense);
   const month=$("month").value;
   const mt=transactions.filter(x=>x.occurred_on?.startsWith(month));
-  $("monthIncome").textContent=money(mt.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0));
-  $("monthExpense").textContent=money(mt.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0));
+  const monthIncome=mt.filter(x=>x.type==="income").reduce((s,x)=>s+Number(x.amount),0);
+  const monthExpense=mt.filter(x=>x.type==="expense").reduce((s,x)=>s+Number(x.amount),0);
+  $("monthIncome").textContent=money(monthIncome);
+  $("monthExpense").textContent=money(monthExpense);
+  // Aylık kalan para, toplam kasa bakiyesinden bağımsız olarak yalnızca seçili ayın gelir-gider farkıdır.
+  const monthRemaining=monthIncome-monthExpense;
+  const [selectedYear,selectedMonth]=month.split("-").map(Number);
+  const now=new Date();
+  const isCurrentMonth=selectedYear===now.getFullYear() && selectedMonth===now.getMonth()+1;
+  const isFutureMonth=new Date(selectedYear,selectedMonth-1,1)>new Date(now.getFullYear(),now.getMonth(),1);
+  const daysInMonth=new Date(selectedYear,selectedMonth,0).getDate();
+  const daysLeft=isCurrentMonth ? daysInMonth-now.getDate()+1 : (isFutureMonth ? daysInMonth : 0);
+  $("monthRemaining").textContent=money(monthRemaining);
+  $("monthRemaining").classList.toggle("limit-negative",monthRemaining<0);
+  $("dailyLimit").textContent=daysLeft>0 ? money(Math.max(0,monthRemaining)/daysLeft) : "—";
+  $("dailyLimit").classList.toggle("limit-negative",monthRemaining<0);
+  $("limitDays").textContent=daysLeft>0 ? `${daysLeft} gün kaldı${isCurrentMonth?" (bugün dahil)":""} · Günlük limit, aylık kalan tutarın gün sayısına bölünmesiyle hesaplanır.` : "Geçmiş ay için günlük harcama limiti hesaplanmıyor.";
   drawCharts(mt, month);
   $("transactions").innerHTML=transactions.length?transactions.map(x=>`<div class="item"><div><b>${esc(x.description||x.category)}</b><small>${esc(x.category)} · ${x.occurred_on} · ${x.payment_method==="card"?"Kredi kartı":"Nakit / Banka"}${x.card_name?" · "+esc(x.card_name):""}</small></div><b class="${x.type==="income"?"positive":"negative"}">${x.type==="income"?"+":"−"}${money(x.amount)}</b><button data-delete="${x.id}">Sil</button></div>`).join(""):'<p class="muted">Henüz işlem yok.</p>';
   $("recurringList").innerHTML=recurring.length?recurring.map(x=>{const done=transactions.some(t=>t.recurring_payment_id===x.id&&t.recurring_month===month);return `<div class="item"><div><b>${esc(x.name)}</b><small>Her ayın ${x.day_of_month}. günü · ${esc(x.category)}${done?" · Bu ay eklendi":""}</small></div><b>${money(x.amount)}</b><button class="quiet" data-rec-add="${x.id}" ${done?"disabled":""}>${done?"Eklendi":"Ekle"}</button><button class="quiet" data-rec-edit="${x.id}">Düzenle</button><button data-rec-delete="${x.id}">Sil</button></div>`}).join(""):'<p class="muted">Henüz tekrarlayan ödeme eklenmedi.</p>';
