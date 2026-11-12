@@ -10,12 +10,23 @@ const $ = id => document.getElementById(id);
 const money = n => new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY"}).format(Number(n||0));
 const today = new Date().toISOString().slice(0,10);
 let type = "expense", transactions = [], recurring = [], user = null, editingRecurringId = null;
+let moneyHidden = localStorage.getItem("dayicim-money-hidden") === "1";
 const categories = {
   income:["Maaş","Serbest çalışma","Yatırım","Diğer"],
   expense:["Market","Konut","Fatura","Ulaşım","Yeme-İçme","Sağlık","Alışveriş","Eğlence","Abonelik","Diğer"]
 };
 function setMessage(id,msg){$(id).textContent=msg}
 function setCategories(){ $("category").innerHTML=categories[type].map(x=>`<option>${x}</option>`).join(""); }
+function applyMoneyVisibility(){
+  document.body.classList.toggle("money-hidden",moneyHidden);
+  const b=$("privacyToggle");
+  if(b){
+    b.textContent=moneyHidden?"◉ Göster":"◉ Gizle";
+    b.setAttribute("aria-label",moneyHidden?"Tüm tutarları göster":"Tüm tutarları gizle");
+    b.setAttribute("aria-pressed",String(moneyHidden));
+    b.title=moneyHidden?"Toplam bakiye, aylık kalan ve günlük limit dahil tüm tutarları göster":"Toplam bakiye, aylık kalan ve günlük limit dahil tüm tutarları gizle";
+  }
+}
 function showApp(session){user=session?.user||null;$("authPanel").classList.toggle("hidden",!!user);$("dashboard").classList.toggle("hidden",!user);$("signOut").classList.toggle("hidden",!user);if(user)loadData()}
 async function loadData(){
   const [t,r]=await Promise.all([
@@ -49,8 +60,9 @@ function render(){
   $("dailyLimit").classList.toggle("limit-negative",monthRemaining<0);
   $("limitDays").textContent=daysLeft>0 ? `${daysLeft} gün kaldı${isCurrentMonth?" (bugün dahil)":""} · Günlük limit, aylık kalan tutarın gün sayısına bölünmesiyle hesaplanır.` : "Geçmiş ay için günlük harcama limiti hesaplanmıyor.";
   drawCharts(mt, month);
-  $("transactions").innerHTML=transactions.length?transactions.map(x=>`<div class="item"><div><b>${esc(x.description||x.category)}</b><small>${esc(x.category)} · ${x.occurred_on} · ${x.payment_method==="card"?"Kredi kartı":"Nakit / Banka"}${x.card_name?" · "+esc(x.card_name):""}</small></div><b class="${x.type==="income"?"positive":"negative"}">${x.type==="income"?"+":"−"}${money(x.amount)}</b><button data-delete="${x.id}">Sil</button></div>`).join(""):'<p class="muted">Henüz işlem yok.</p>';
-  $("recurringList").innerHTML=recurring.length?recurring.map(x=>{const done=transactions.some(t=>t.recurring_payment_id===x.id&&t.recurring_month===month);return `<div class="item"><div><b>${esc(x.name)}</b><small>Her ayın ${x.day_of_month}. günü · ${esc(x.category)}${done?" · Bu ay eklendi":""}</small></div><b>${money(x.amount)}</b><button class="quiet" data-rec-add="${x.id}" ${done?"disabled":""}>${done?"Eklendi":"Ekle"}</button><button class="quiet" data-rec-edit="${x.id}">Düzenle</button><button data-rec-delete="${x.id}">Sil</button></div>`}).join(""):'<p class="muted">Henüz tekrarlayan ödeme eklenmedi.</p>';
+  applyMoneyVisibility();
+  $("transactions").innerHTML=transactions.length?transactions.map(x=>`<div class="item"><div><b>${esc(x.description||x.category)}</b><small>${esc(x.category)} · ${x.occurred_on} · ${x.payment_method==="card"?"Kredi kartı":"Nakit / Banka"}${x.card_name?" · "+esc(x.card_name):""}</small></div><b data-private-money class="${x.type==="income"?"positive":"negative"}">${x.type==="income"?"+":"−"}${money(x.amount)}</b><button data-delete="${x.id}">Sil</button></div>`).join(""):'<p class="muted">Henüz işlem yok.</p>';
+  $("recurringList").innerHTML=recurring.length?recurring.map(x=>{const done=transactions.some(t=>t.recurring_payment_id===x.id&&t.recurring_month===month);return `<div class="item"><div><b>${esc(x.name)}</b><small>Her ayın ${x.day_of_month}. günü · ${esc(x.category)}${done?" · Bu ay eklendi":""}</small></div><b data-private-money>${money(x.amount)}</b><button class="quiet" data-rec-add="${x.id}" ${done?"disabled":""}>${done?"Eklendi":"Ekle"}</button><button class="quiet" data-rec-edit="${x.id}">Düzenle</button><button data-rec-delete="${x.id}">Sil</button></div>`}).join(""):'<p class="muted">Henüz tekrarlayan ödeme eklenmedi.</p>';
 }
 
 const chartColors=["#0b9874","#ff914d","#547bd4","#e85b65","#8b69c9","#e5b84c","#42a6b4","#8aa69a"];
@@ -116,6 +128,8 @@ function roundRect(ctx,x,y,w,h,r){if(h<=0)return;ctx.beginPath();ctx.roundRect(x
 
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 $("month").value=today.slice(0,7);$("date").value=today;setCategories();
+$("privacyToggle").addEventListener("click",()=>{moneyHidden=!moneyHidden;localStorage.setItem("dayicim-money-hidden",moneyHidden?"1":"0");applyMoneyVisibility();});
+applyMoneyVisibility();
 document.querySelectorAll("[data-type]").forEach(b=>b.addEventListener("click",()=>{type=b.dataset.type;document.querySelectorAll("[data-type]").forEach(x=>x.classList.toggle("active",x===b));setCategories()}));
 $("payment").addEventListener("change",()=>$("cardLabel").classList.toggle("hidden",$("payment").value!=="card"));
 $("signUp").onclick=async()=>{if(!supabase){setMessage("authMessage","Önce Supabase proje bilgileri eklenmeli.");return}const {error}=await supabase.auth.signUp({email:$("email").value,password:$("password").value});setMessage("authMessage",error?.message||"Kayıt bağlantısı e-posta adresine gönderildi. E-postanı kontrol et.")};
